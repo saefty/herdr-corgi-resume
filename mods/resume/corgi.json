@@ -1,7 +1,9 @@
 {
   "name": "resume",
-  "version": "0.1.0",
-  "requires": {"herdr-app": ">=0.1.14"},
+  "version": "0.1.1",
+  "requires": {
+    "herdr-app": ">=0.1.14"
+  },
   "provides": {},
   "keys": null
 }

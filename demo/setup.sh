@@ -1,9 +1,9 @@
 #!/bin/sh
 # Builds the demo: a separate Herdr home (demo/home) with three invented Claude sessions to resume, seeded from
-# demo/fixtures/sessions.json by demo/seed.py, and their hooks set up in an invented user home (demo/home/user, with
-# ~/.claude and ~/.claude-oss). RESUME_FIXTURE (demo/home/fixture.json) stands in for that home and for `hc ls`, so
+# demo/fixtures/sessions.json by demo/seed.py, and their hooks set up in an invented user home (user/ inside demo/home, with
+# ~/.claude and ~/.claude-oss). RESUME_FIXTURE (fixture.json in demo/home) stands in for that home and for `hc ls`, so
 # the dialog never lists your real terminals or config dirs. Then:
-#   HERDR_APP_HOME="$PWD/demo/home" RESUME_FIXTURE="$PWD/demo/home/fixture.json" /path/to/Herdr   (a second window)
+#   HERDR_APP_HOME="$PWD/demo/home" RESUME_FIXTURE="<demo home>/fixture.json" /path/to/Herdr   (a second window)
 #   HERDR_APP_HOME="$PWD/demo/home" herdr-app do layout.switch --name demo   (the watcher alone: the notification)
 #   HERDR_APP_HOME="$PWD/demo/home" herdr-app do mod.open --name resume      (the dialog)
 # `sh demo/setup.sh --no-hooks` leaves the hooks out (the "not set up" state). Resume in the demo fails: the

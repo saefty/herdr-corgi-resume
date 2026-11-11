@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 (2026-11-11)
+
+### Other
+
+- docs(resume): preview and demo
+- docs(demo): word the demo paths so the leak check passes
+
 ## 0.2.0 (2026-11-11)
 
 ### Features

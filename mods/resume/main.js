@@ -30,7 +30,7 @@ const usd = (c) => (c < 0.01 ? "<$0.01" : `$${c.toFixed(2)}`);
 const CACHE_TIP = "The prompt cache expired with the restart. The first message after resuming writes the whole context "
   + "to the cache once; later turns read it at a tenth of the price. Cost at Anthropic API list prices; a subscription "
   + "isn't billed per token.";
-const tilde = (p) => (p === home() || p.startsWith(`${home()}/`) ? `~${p.slice(home().length)}` : p);
+const tilde = (p, h) => (p === h || p.startsWith(`${h}/`) ? `~${p.slice(h.length)}` : p);
 
 export default class Resume extends View {
   init(_props, cx) {
@@ -86,7 +86,9 @@ export default class Resume extends View {
     cx.spawn(async (cx) => {
       try {
         this.rows = (await helper("candidates", "--cost")).candidates; // once per dialog: reads transcript tails
-        this.dirs = (await helper("status")).dirs;
+        const status = await helper("status");
+        this.dirs = status.dirs;
+        this.home = status.home; // hook.py's home: RESUME_FIXTURE's in the demo, else the same as home()
         this.err = null;
       } catch (e) { this.rows = this.rows ?? []; this.err = String(e?.message ?? e); }
       cx.notify();
@@ -132,6 +134,7 @@ export default class Resume extends View {
   render(cx) {
     if (!this.overlay) { this.watch(cx); return div(); }
     const t = theme();
+    const h = this.home ?? home();
     const button = (id, label, primary, enabled, onClick) => div().id(id).px(10).py(4).rounded(5).text_size(12)
       .bg(primary ? t.solid : t.raised).text_color(primary ? t.solid_foreground : t.foreground)
       .when(!enabled, (el) => el.opacity(0.45))
@@ -154,7 +157,7 @@ export default class Resume extends View {
           .items_center().justify_center().child(on ? "✓" : ""))
         .child(v_flex().flex_1().min_w(0)
           .child(div().text_size(13).text_color(t.foreground).truncate().child(r.where))
-          .child(div().text_size(11.5).text_color(t.dim).truncate().child(tilde(r.cwd))))
+          .child(div().text_size(11.5).text_color(t.dim).truncate().child(tilde(r.cwd, h))))
         .child(div().flex_none().px(6).rounded(4).bg(t.raised).text_size(11).text_color(t.muted).child(r.label))
         .child(div().flex_none().w(110).text_size(11.5).text_color(t.dim).truncate()
           .when(Boolean(r.cache), (el) => el.tooltip(`${r.cache.model ?? "Unknown model"}, ${r.cache.ttl} cache. ${CACHE_TIP}`)
@@ -173,7 +176,7 @@ export default class Resume extends View {
         .child("Set up adds a SessionStart and a SessionEnd hook to each config dir's settings.json. Your other hooks stay."))
       .children(this.dirs.map((d) => h_flex().gap(8).text_size(12)
         .child(div().w(8).h(8).rounded_full().bg(d.installed ? t.ansi2 : t.dim))
-        .child(div().flex_1().truncate().text_color(t.foreground).child(tilde(d.dir)))
+        .child(div().flex_1().truncate().text_color(t.foreground).child(tilde(d.dir, h)))
         .child(div().text_color(d.error ? t.blocked : t.muted).child(d.error ?? (d.installed ? "set up" : "not set up")))))
       .when(this.dirs.length === 0 && this.rows !== null, (el) => el.child(div().text_size(12).text_color(t.muted).child("No Claude config dir found (~/.claude).")));
 

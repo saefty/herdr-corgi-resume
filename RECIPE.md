@@ -4,7 +4,7 @@ After a reboot, Herdr's terminals come back as plain shells and the Claude Code 
 remembers which session ran in which terminal, posts one notification when some can be resumed, and opens a dialog
 where the person picks the ones to bring back. Nothing resumes without a click.
 
-<!-- TODO: ![Resume](preview.png) -->
+![Resume](preview.png)
 
 **What you see:**
 - Nothing while there is nothing to resume: the watcher is a floating block that renders an empty `div`, so Herdr
@@ -65,8 +65,8 @@ where the person picks the ones to bring back. Nothing resumes without a click.
     `<app home>/data/resume/<HC_TERMINAL_ID>.json` = `{terminal, session_id, cwd, config_dir, transcript, at}`
     atomically (`config_dir`: `CLAUDE_CONFIG_DIR` made absolute, or null); SessionEnd deletes it only when its
     `session_id` matches. Never prints, always exits 0. `<app home>` is `HERDR_APP_HOME`, else `~/.config/herdr-app`.
-  - `status`: `{dirs: [{dir, label, installed}]}` for `~/.claude` plus each `~/.claude-*` dir holding a
-    `settings.json` or `projects/`.
+  - `status`: `{dirs: [{dir, label, installed}], home}` for `~/.claude` plus each `~/.claude-*` dir holding a
+    `settings.json` or `projects/`; `home` is the folder `~` means (the dialog shortens paths with it).
   - `setup` / `remove`: the same, after merging. Setup appends `{"hooks": [{"type": "command", "command":
     "python3 <abs path of hook.py>"}]}` (no matcher) to `hooks.SessionStart` and `hooks.SessionEnd` unless that
     command is already there; remove takes that command out and drops a group, event or `hooks` key only when it
@@ -99,6 +99,9 @@ where the person picks the ones to bring back. Nothing resumes without a click.
 - Local terminals only: a session on another machine writes its record on that machine.
 - The cost is an estimate at API list prices: Claude Code may trim or reshape the context on resume, and a
   subscription isn't billed per token. Update `PRICES` when Anthropic's prices change.
+- `RESUME_FIXTURE` (demo and screenshots only): a JSON file `{home, terminals}`; when set, hook.py takes
+  `terminals` instead of running `hc ls --json` and `home` instead of `~`. Herdr passes its environment to `exec`, so
+  set it on the demo window only (`demo/setup.sh` says how); never in your real one.
 - Settings writes reformat `settings.json` (2-space JSON); content and key order stay.
 
 **Done when:** `herdr-app check mods/resume` passes; `python3 mods/resume/test_hook.py` prints "all passed" (it runs

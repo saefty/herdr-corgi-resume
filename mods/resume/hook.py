@@ -12,6 +12,8 @@ For the mod (each prints one JSON object):
                 with --cost also what resuming writes to the prompt cache (tokens, model, ttl, cost)
   dismiss T...  deletes the records of these terminals
 <app home> is $HERDR_APP_HOME, else ~/.config/herdr-app.
+RESUME_FIXTURE (demo and screenshots only): a JSON file {home, terminals} that stands in for the home folder and
+for `hc ls --json`, so the dialog shows invented sessions instead of the real terminals and config dirs.
 """
 import json
 import os
@@ -31,6 +33,15 @@ TERMINAL = re.compile(r"[A-Za-z0-9_.-]+")
 
 def app_home():
     return Path(os.environ.get("HERDR_APP_HOME") or Path.home() / ".config" / "herdr-app")
+
+
+def fixture():
+    f = os.environ.get("RESUME_FIXTURE")
+    return read_json(f, {}) if f else None
+
+
+def user_home():
+    return Path((fixture() or {}).get("home") or Path.home())
 
 
 def records_dir():
@@ -90,7 +101,7 @@ def hook_command():
 
 def config_dirs(home=None):
     """~/.claude, plus every ~/.claude-* folder that holds a settings.json or projects/."""
-    home = Path(home or Path.home())
+    home = Path(home or user_home())
     dirs = [home / ".claude"] if (home / ".claude").is_dir() else []
     return dirs + sorted(p for p in home.glob(".claude-*")
                          if p.is_dir() and ((p / "settings.json").is_file() or (p / "projects").is_dir()))
@@ -250,6 +261,9 @@ def cache_estimate(transcript):
 
 
 def live_terminals():
+    fx = fixture()
+    if fx is not None:
+        return fx.get("terminals") or []
     r = subprocess.run(["hc", "ls", "--json"], capture_output=True, text=True, timeout=15)
     if r.returncode != 0:
         return None
@@ -303,7 +317,7 @@ def main(argv):
         return 0
     cmd, arg = hook_command(), argv[1]
     if arg == "status":
-        out = {"dirs": [dir_state(d, cmd) for d in config_dirs()]}
+        out = {"dirs": [dir_state(d, cmd) for d in config_dirs()], "home": str(user_home())}
     elif arg in ("setup", "remove"):
         out = {"dirs": change(config_dirs(), add_hooks if arg == "setup" else remove_hooks, cmd)}
     elif arg == "candidates":

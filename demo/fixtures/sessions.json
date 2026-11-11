@@ -1,0 +1,11 @@
+[
+  { "terminal": "t1", "where": "acme-shop / checkout", "cwd": "code/acme-shop", "config": ".claude",
+    "session_id": "0b7e3c1a-5d2f-4a8e-9c61-2f4d8a1b6e01", "model": "claude-opus-4-5-20251101",
+    "tokens": 182000, "ttl": "5m", "age_min": 12 },
+  { "terminal": "t2", "where": "garden-api / 2", "cwd": "code/garden-api", "config": ".claude-oss",
+    "session_id": "6a91f0d4-3c7b-4e25-8f13-9d0c2e7a4b02", "model": "claude-sonnet-4-5",
+    "tokens": 96000, "ttl": "5m", "age_min": 180 },
+  { "terminal": "t3", "where": "field-notes / 1", "cwd": "code/field-notes", "config": ".claude",
+    "session_id": "d43a8e27-1f6c-4b90-a5e8-7c2b9f0d3e03", "model": "claude-opus-4-5-20251101",
+    "tokens": 134000, "ttl": "1h", "age_min": 2900 }
+]

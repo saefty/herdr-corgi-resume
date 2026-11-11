@@ -2,7 +2,7 @@
 
 <h3 align="center">Your Claude Code sessions, back after a reboot. Herdr brings your terminals back; this mod brings back the conversations that ran in them, one click each.</h3>
 
-<!-- TODO: preview.png -->
+<p align="center"><img src="preview.png" width="88%" alt="The Resume dialog with three Claude sessions, their cache cost and the total" /></p>
 
 <p align="center"><sub>✓&nbsp;Free,&nbsp;MIT &nbsp;·&nbsp; ✓&nbsp;Runs&nbsp;locally &nbsp;·&nbsp; ✓&nbsp;herdr-app&nbsp;0.1.14+</sub></p>
 
@@ -12,6 +12,8 @@ After a reboot, a logout or a crash of herdr-core, Herdr restores every terminal
 folder, under the same address. It never runs the original program again, so the Claude Code sessions are gone
 from the screen. This mod remembers which session ran in which terminal. When terminals come back without Claude,
 it shows one notification: "3 Claude sessions can be resumed". Click it, pick the sessions, press Resume.
+
+<p align="center"><img src="docs/screenshots/notification.png" width="380" alt="The notification: 3 Claude sessions can be resumed" /></p>
 
 Nothing resumes by itself. Resuming reloads a whole conversation, which costs tokens, so you choose each one; the
 dialog shows roughly how many and what that would cost at API prices.
@@ -73,6 +75,8 @@ By hand, step by step:
 4. Open the dialog: `herdr-app do mod.open --name resume` (the first start also posts a notification that opens
    it). Click **Set up**.
 
+<p align="center"><img src="docs/screenshots/set-up.png" width="560" alt="The dialog's hook section before Set up: ~/.claude and ~/.claude-oss not set up" /></p>
+
 Set up adds one SessionStart and one SessionEnd entry, `python3 ~/.config/herdr-app/mods/resume/hook.py`, to the
 `settings.json` of `~/.claude` and of every `~/.claude-*` folder that has a `settings.json` or a `projects/` folder.
 Your other hooks and settings stay as they are; the first change keeps a copy as `settings.json.resume.bak`.
@@ -94,6 +98,16 @@ one.
 ## Tests
 
 `python3 mods/resume/test_hook.py`
+
+## Demo
+
+The screenshots show invented sessions (`demo/`), not real ones. `sh demo/setup.sh` builds a separate Herdr home in
+`demo/home` with three sessions from `demo/fixtures/sessions.json` and an invented user home with `~/.claude` and
+`~/.claude-oss` (`--no-hooks` leaves them not set up). Open a second Herdr window on it with the
+`HERDR_APP_HOME` and `RESUME_FIXTURE` the script prints, switch it to the `demo` layout
+(`herdr-app do layout.switch --name demo`) for the notification, and `herdr-app do mod.open --name resume` for the
+dialog. `RESUME_FIXTURE` stands in for `hc ls` and your home folder, so your real terminals and config dirs don't
+show; Resume does nothing useful there.
 
 ## License
 

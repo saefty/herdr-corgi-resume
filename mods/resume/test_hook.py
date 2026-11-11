@@ -137,6 +137,20 @@ def test_candidates():
     assert not (RECORDS / "t1.json").exists() and (RECORDS / "t5.json").exists()
 
 
+def test_fixture():
+    fake = TMP / "fake-home"
+    (fake / ".claude-oss" / "projects").mkdir(parents=True)
+    fx = TMP / "fixture.json"
+    fx.write_text(json.dumps({"home": str(fake), "terminals": [{"address": "t9", "agent": "zsh", "state": "live", "where": "shop / 1"}]}))
+    (RECORDS / "t9.json").write_text(json.dumps({"terminal": "t9", "session_id": "s9", "cwd": str(fake / "code"), "config_dir": None, "at": 1}))
+    env = {**ENV, "RESUME_FIXTURE": str(fx), "PATH": ""}  # no `hc` reachable: the fixture alone answers
+    out = lambda *a: json.loads(subprocess.run([sys.executable, str(HOOK), *a], env=env, capture_output=True, text=True).stdout)
+    got = out("candidates")
+    assert got["core"] and [c["where"] for c in got["candidates"]] == ["shop / 1"], got
+    assert out("status") == {"dirs": [{"dir": str(fake / ".claude-oss"), "label": ".claude-oss", "installed": False}], "home": str(fake)}
+    (RECORDS / "t9.json").unlink()
+
+
 def assistant(model, inp, read, write, h1=0):
     return json.dumps({"type": "assistant", "message": {"model": model, "usage": {
         "input_tokens": inp, "cache_read_input_tokens": read, "cache_creation_input_tokens": write,

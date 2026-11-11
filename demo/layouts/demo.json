@@ -1,0 +1,8 @@
+{
+ "id": "root",
+ "type": "row",
+ "background": "canvas",
+ "children": [
+  { "id": "resume", "type": "block", "content": { "mod": "resume" } }
+ ]
+}

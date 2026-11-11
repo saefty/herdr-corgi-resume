@@ -8,7 +8,8 @@ For the mod (each prints one JSON object):
   status        the Claude config dirs and whether our hooks are in their settings.json
   setup         adds our SessionStart and SessionEnd hooks to every config dir's settings.json
   remove        takes exactly those entries out again
-  candidates    records whose terminal is live but not running Claude, each with its resume command
+  candidates    records whose terminal is live but not running Claude, each with its resume command;
+                with --cost also what resuming writes to the prompt cache (tokens, model, ttl, cost)
   dismiss T...  deletes the records of these terminals
 <app home> is $HERDR_APP_HOME, else ~/.config/herdr-app.
 """
@@ -182,6 +183,72 @@ def resume_command(rec):
     return f"cd {sh_quote(rec['cwd'])}; {env}claude --resume {sh_quote(rec['session_id'])}"
 
 
+# Input list price, $ per million tokens (Anthropic API, as of 2026-11). The longest prefix of the model id wins.
+PRICES = {
+    "claude-fable-5-2": 8, "claude-mythos-5-2": 8,
+    "claude-fable-5-1": 10, "claude-fable-5": 10, "claude-mythos-5-1": 10,
+    "claude-opus-5-5": 4, "claude-opus-5": 5,
+    "claude-opus-4-8": 5, "claude-opus-4-7": 5, "claude-opus-4-6": 5, "claude-opus-4-5": 5,
+    "claude-opus-4-1": 15, "claude-opus-4": 15,
+    "claude-sonnet-5-5": 2, "claude-sonnet-5": 2,
+    "claude-sonnet-4-6": 3, "claude-sonnet-4-5": 3, "claude-sonnet-4": 3,
+    "claude-haiku-5-5": 0.10, "claude-haiku-4-5": 1,
+}
+CACHE_WRITE = {"5m": 1.25, "1h": 2}  # a cache write costs the input price times this
+
+
+def input_price(model, tokens):
+    """$ per million input tokens for this model id (may carry a date suffix or "[1m]"), or None when unknown."""
+    hits = [p for p in PRICES if model == p or model.startswith((p + "-", p + "["))]
+    if not hits:
+        return None
+    p = max(hits, key=len)
+    return 0.50 if p == "claude-haiku-5-5" and tokens > 100_000 else PRICES[p]
+
+
+def last_usage(path, chunk=1 << 16):
+    """(model, usage) of the transcript's last assistant line that has a usage, read backwards in chunks
+    (a transcript can be 50+ MB), or None."""
+    try:
+        with open(path, "rb") as f:
+            pos, tail = f.seek(0, os.SEEK_END), b""
+            while pos > 0:
+                step = min(chunk, pos)
+                pos -= step
+                f.seek(pos)
+                lines = (f.read(step) + tail).split(b"\n")
+                tail = lines.pop(0) if pos > 0 else b""  # may start mid-line: finish it with the next chunk
+                for line in reversed(lines):
+                    if b'"usage"' not in line:
+                        continue
+                    try:
+                        d = json.loads(line)
+                    except ValueError:
+                        continue
+                    m = d.get("message") if isinstance(d, dict) and d.get("type") == "assistant" else None
+                    if (isinstance(m, dict) and isinstance(m.get("usage"), dict) and not d.get("isSidechain")
+                            and m.get("model") != "<synthetic>"):  # <synthetic>: an error Claude Code wrote itself
+                        return m.get("model"), m["usage"]
+    except OSError:
+        pass
+    return None
+
+
+def cache_estimate(transcript):
+    """What resuming writes to the prompt cache: the last turn's whole context (the cache expired with the reboot).
+    {tokens, model, ttl, cost} with cost in $ at API list price, None when the model is unknown."""
+    hit = last_usage(transcript) if transcript else None
+    if not hit:
+        return None
+    model, u = hit
+    n = lambda v: v if isinstance(v, int) else 0
+    tokens = sum(n(u.get(k)) for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+    ttl = "1h" if n((u.get("cache_creation") or {}).get("ephemeral_1h_input_tokens")) > 0 else "5m"
+    price = input_price(model, tokens) if isinstance(model, str) else None
+    cost = round(tokens * price * CACHE_WRITE[ttl] / 1e6, 4) if price is not None else None
+    return {"tokens": tokens, "model": model, "ttl": ttl, "cost": cost}
+
+
 def live_terminals():
     r = subprocess.run(["hc", "ls", "--json"], capture_output=True, text=True, timeout=15)
     if r.returncode != 0:
@@ -189,8 +256,9 @@ def live_terminals():
     return json.loads(r.stdout).get("terminals") or []
 
 
-def candidates(terminals):
-    """`terminals`: `hc ls --json`'s list, or None when it failed (then nothing is pruned)."""
+def candidates(terminals, cost=False):
+    """`terminals`: `hc ls --json`'s list, or None when it failed (then nothing is pruned).
+    `cost`: add each row's `cache` estimate (reads the transcripts' tails; the dialog asks, the watcher doesn't)."""
     by = {t.get("address"): t for t in terminals or []}
     out = []
     for f in sorted(records_dir().glob("*.json")):
@@ -215,7 +283,8 @@ def candidates(terminals):
         cfg = rec.get("config_dir")
         out.append({**rec, "command": cmd, "where": t.get("where") or rec["terminal"],
                     "label": os.path.basename(cfg.rstrip("/")) if cfg else ".claude",
-                    "last": int(os.path.getmtime(transcript)) if transcript else rec.get("at")})
+                    "last": int(os.path.getmtime(transcript)) if transcript else rec.get("at"),
+                    **({"cache": cache_estimate(transcript)} if cost else {})})
     return out
 
 
@@ -242,7 +311,7 @@ def main(argv):
             terminals = live_terminals()
         except (OSError, ValueError, subprocess.SubprocessError):
             terminals = None
-        out = {"candidates": candidates(terminals), "core": terminals is not None}
+        out = {"candidates": candidates(terminals, "--cost" in argv[2:]), "core": terminals is not None}
     elif arg == "dismiss":
         dismiss(argv[2:])
         out = {"ok": True}

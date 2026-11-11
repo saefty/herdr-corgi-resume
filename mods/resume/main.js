@@ -24,6 +24,12 @@ const ago = (s) => {
   const d = Math.max(0, Date.now() / 1000 - s);
   return d < 60 ? "now" : d < 3600 ? `${Math.floor(d / 60)} min` : d < 86400 ? `${Math.floor(d / 3600)} h` : `${Math.floor(d / 86400)} d`;
 };
+const kilo = (n) => (n < 1000 ? String(n) : n < 1e6 ? `${Math.round(n / 1000)}K` : `${(n / 1e6).toFixed(1)}M`);
+const usd = (c) => (c < 0.01 ? "<$0.01" : `$${c.toFixed(2)}`);
+// Each row's r.cache comes from `hook.py candidates --cost`: what resuming writes to the prompt cache.
+const CACHE_TIP = "The prompt cache expired with the restart. The first message after resuming writes the whole context "
+  + "to the cache once; later turns read it at a tenth of the price. Cost at Anthropic API list prices; a subscription "
+  + "isn't billed per token.";
 const tilde = (p) => (p === home() || p.startsWith(`${home()}/`) ? `~${p.slice(home().length)}` : p);
 
 export default class Resume extends View {
@@ -79,7 +85,7 @@ export default class Resume extends View {
   load(cx) {
     cx.spawn(async (cx) => {
       try {
-        this.rows = (await helper("candidates")).candidates;
+        this.rows = (await helper("candidates", "--cost")).candidates; // once per dialog: reads transcript tails
         this.dirs = (await helper("status")).dirs;
         this.err = null;
       } catch (e) { this.rows = this.rows ?? []; this.err = String(e?.message ?? e); }
@@ -132,7 +138,11 @@ export default class Resume extends View {
       .when(enabled, (el) => el.cursor_pointer().hover((s) => s.bg(primary ? t.accent : t.hover)).on_click(onClick))
       .child(label);
     const rows = this.rows ?? [];
-    const picked = rows.filter((r) => !this.off.has(r.terminal)).length;
+    const ticked = rows.filter((r) => !this.off.has(r.terminal)), picked = ticked.length;
+    const est = ticked.map((r) => r.cache).filter(Boolean);
+    const priced = est.filter((c) => c.cost != null);
+    const total = est.length === 0 ? null : `≈ ${kilo(est.reduce((a, c) => a + c.tokens, 0))} tokens to cache`
+      + (priced.length ? ` · ~${usd(priced.reduce((a, c) => a + c.cost, 0))}${priced.length < est.length ? "+" : ""} at API prices` : "");
 
     const row = (r) => {
       const on = !this.off.has(r.terminal);
@@ -146,6 +156,9 @@ export default class Resume extends View {
           .child(div().text_size(13).text_color(t.foreground).truncate().child(r.where))
           .child(div().text_size(11.5).text_color(t.dim).truncate().child(tilde(r.cwd))))
         .child(div().flex_none().px(6).rounded(4).bg(t.raised).text_size(11).text_color(t.muted).child(r.label))
+        .child(div().flex_none().w(110).text_size(11.5).text_color(t.dim).truncate()
+          .when(Boolean(r.cache), (el) => el.tooltip(`${r.cache.model ?? "Unknown model"}, ${r.cache.ttl} cache. ${CACHE_TIP}`)
+            .child(`${kilo(r.cache.tokens)} tok${r.cache.cost != null ? ` · ~${usd(r.cache.cost)}` : ""}`)))
         .child(div().flex_none().w(44).text_size(11.5).text_color(t.dim).child(ago(r.last ?? r.at)));
     };
 
@@ -175,7 +188,9 @@ export default class Resume extends View {
           .child("Nothing to resume. A session shows up here when its terminal is back as a plain shell.")))
         .children(rows.map(row)))
       .when(Boolean(this.err), (el) => el.child(div().text_size(11.5).text_color(t.blocked).truncate().child(this.err)))
-      .when(rows.length > 0, (el) => el.child(h_flex().gap(8).justify_end()
+      .when(rows.length > 0, (el) => el.child(h_flex().gap(8).justify_end().items_center()
+        .when(Boolean(total), (el) => el.child(div().flex_1().min_w(0).truncate().text_size(11.5).text_color(t.muted)
+          .tooltip(CACHE_TIP).child(total)))
         .child(button("dismiss", "Dismiss", false, !this.busy, (_e, cx) => this.dismiss(cx)))
         .child(button("resume", picked === rows.length ? "Resume all" : `Resume ${picked}`, true, !this.busy && picked > 0, (_e, cx) => this.resume(cx)))))
       .child(hooks);

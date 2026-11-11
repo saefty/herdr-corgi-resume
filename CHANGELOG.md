@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- resume: show per session, and in total for the ticked ones, how many tokens resuming writes to the prompt cache
+  and roughly what that costs at API list prices
+
 ## 0.1.1 (2026-11-11)
 
 ### Features

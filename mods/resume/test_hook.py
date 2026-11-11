@@ -131,8 +131,53 @@ def test_candidates():
     assert got["t1"]["where"] == "repo / 1" and got["t1"]["label"] == ".claude" and got["t5"]["label"] == ".claude-x"
     assert got["t5"]["command"] == "cd '/w'; env CLAUDE_CONFIG_DIR='/h/.claude-x' claude --resume 's5'"
     assert not (RECORDS / "t4.json").exists()
+    assert "cache" not in got["t1"]  # the watcher doesn't read transcripts
+    assert all(c["cache"] is None for c in H.candidates(ls, cost=True))  # "{}" has no usage
     H.dismiss(["t1", "../t5"])
     assert not (RECORDS / "t1.json").exists() and (RECORDS / "t5.json").exists()
+
+
+def assistant(model, inp, read, write, h1=0):
+    return json.dumps({"type": "assistant", "message": {"model": model, "usage": {
+        "input_tokens": inp, "cache_read_input_tokens": read, "cache_creation_input_tokens": write,
+        "cache_creation": {"ephemeral_1h_input_tokens": h1, "ephemeral_5m_input_tokens": write - h1}}}})
+
+
+def test_cache_estimate():
+    f = TMP / "big.jsonl"
+    filler = json.dumps({"type": "user", "message": {"content": "x" * 5000}})
+    with open(f, "w") as out:
+        out.write(assistant("claude-sonnet-4-5", 1, 1, 1) + "\n")
+        for _ in range(12000):  # ~60 MB: found from the end in a few chunks, never read whole
+            out.write(filler + "\n")
+        out.write(assistant("claude-opus-4-5-20251101", 10, 300_000, 99_990) + "\n")
+        out.write(assistant("claude-opus-4-5", 0, 0, 0).replace('"type": "assistant"', '"type": "assistant", "isSidechain": true') + "\n")
+        out.write(json.dumps({"type": "assistant", "message": {"model": "<synthetic>", "usage": {"input_tokens": 0}}}) + "\n")
+        out.write(json.dumps({"type": "assistant", "message": {"content": "no usage"}}) + "\n")
+        out.write(json.dumps({"type": "user", "message": {"content": "last", "note": '"usage"'}}) + "\n{broken")
+    assert f.stat().st_size > 50e6
+    model, usage = H.last_usage(f)
+    assert model == "claude-opus-4-5-20251101" and usage["cache_read_input_tokens"] == 300_000
+    est = H.cache_estimate(str(f))
+    assert est == {"tokens": 400_000, "model": "claude-opus-4-5-20251101", "ttl": "5m", "cost": 2.5}, est  # 0.4 * 5 * 1.25
+    # a line split across a chunk boundary, and the file's first line
+    small = TMP / "small.jsonl"
+    small.write_text(assistant("claude-haiku-4-5", 1, 2, 3, h1=3) + "\n" + filler + "\n")
+    assert H.last_usage(small, chunk=7)[0] == "claude-haiku-4-5"
+    assert H.cache_estimate(str(small)) == {"tokens": 6, "model": "claude-haiku-4-5", "ttl": "1h", "cost": 0.0}
+    assert H.cache_estimate(str(TMP / "missing.jsonl")) is None and H.cache_estimate(None) is None
+    unknown = TMP / "unknown.jsonl"
+    unknown.write_text(assistant("gpt-x", 0, 1000, 0) + "\n")
+    assert H.cache_estimate(str(unknown)) == {"tokens": 1000, "model": "gpt-x", "ttl": "5m", "cost": None}
+
+
+def test_prices():
+    p = H.input_price
+    assert p("claude-opus-5-5", 1) == 4 and p("claude-opus-5", 1) == 5 and p("claude-opus-5-20261001", 1) == 5
+    assert p("claude-opus-4-5-20251101", 1) == 5 and p("claude-opus-4-20250514", 1) == 15
+    assert p("claude-sonnet-4-5[1m]", 1) == 3 and p("claude-fable-5-2", 1) == 8 and p("claude-fable-5", 1) == 10
+    assert p("claude-haiku-5-5", 100_000) == 0.10 and p("claude-haiku-5-5", 100_001) == 0.50
+    assert p("claude-opus-50", 1) is None and p("gpt-x", 1) is None and p("", 1) is None
 
 
 if __name__ == "__main__":

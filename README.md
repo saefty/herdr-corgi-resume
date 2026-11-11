@@ -13,7 +13,8 @@ folder, under the same address. It never runs the original program again, so the
 from the screen. This mod remembers which session ran in which terminal. When terminals come back without Claude,
 it shows one notification: "3 Claude sessions can be resumed". Click it, pick the sessions, press Resume.
 
-Nothing resumes by itself. Resuming reloads a whole conversation, which costs tokens, so you choose each one.
+Nothing resumes by itself. Resuming reloads a whole conversation, which costs tokens, so you choose each one; the
+dialog shows roughly how many and what that would cost at API prices.
 
 ## Use cases
 
@@ -29,7 +30,10 @@ Nothing resumes by itself. Resuming reloads a whole conversation, which costs to
    Herdr terminal (`HC_TERMINAL_ID` is set) it writes `~/.config/herdr-app/data/resume/<terminal>.json`: the session
    id, its folder and its config dir. `/clear` overwrites it; a normal exit deletes it.
 2. The mod watches Herdr's terminals. A record whose terminal is live but no longer runs Claude can be resumed.
-3. The dialog lists them with their space and tab, folder, config dir and last activity. Resume types
+3. The dialog lists them with their space and tab, folder, config dir, last activity, and what resuming costs: the
+   cache expired with the reboot, so the first message writes the whole context to the prompt cache again. The
+   estimate is the context size of the session's last turn (from the end of its transcript) at Anthropic API list
+   prices, e.g. "≈ 412K tokens to cache · ~$2.06 at API prices" in total for the ticked rows. Resume types
    `cd '<folder>'; env CLAUDE_CONFIG_DIR='<dir>' claude --resume <id>` into each chosen terminal (without the `env`
    part for the default `~/.claude`). The quoting works in sh, bash, zsh and fish.
 

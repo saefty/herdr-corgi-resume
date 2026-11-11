@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 (2026-11-11)
+
+### Features
+
+- resume: show prompt-cache tokens and API-price cost per session
+
 ## Unreleased
 
 ### Features

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 (2026-11-14)
+
+### Fixes
+
+- resume: keep the session record when Claude is killed by a shutdown, logout or update
+- resume: repeat the set-up hint on every app start until the hooks are set up
+
 ## 0.3.0 (2026-11-11)
 
 ### Other

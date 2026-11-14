@@ -11,7 +11,7 @@ import { v_flex, h_flex } from "gpui-base";
 import { exec, hc, appHome, home, notify, props, closeOverlay, shared, setShared, terminals, theme } from "herdr";
 
 const KEY = "resume.notified"; // the candidate set the last notification was about
-const HINTED = "resume.hinted"; // the one-time "set it up" notification was shown
+let hinted = false; // the "set it up" notification was shown in this app run (module scope: shared by every copy)
 const OPEN = { name: "mod.open", args: { name: "resume" } };
 
 async function helper(...args) {
@@ -44,14 +44,15 @@ export default class Resume extends View {
     this.load(cx);
   }
 
-  // Once ever: with no config dir set up, say where to set it up.
+  // Once per app run, for as long as no config dir is set up: without the hooks nothing is recorded, and after a
+  // restart there would be nothing to offer and nothing saying why.
   hint(cx) {
-    if (shared(HINTED)) return;
+    if (hinted) return;
+    hinted = true;
     cx.spawn(async () => {
       try {
         const { dirs } = await helper("status");
-        if (shared(HINTED) || dirs.some((d) => d.installed)) return;
-        setShared(HINTED, true);
+        if (dirs.some((d) => d.installed)) return;
         notify({ title: "Resume Claude sessions after a restart", body: "Click to set up the Claude Code hooks it needs.", level: "info", action: OPEN });
       } catch {}
     });

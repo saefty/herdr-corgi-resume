@@ -52,6 +52,11 @@ where the person picks the ones to bring back. Nothing resumes without a click.
 - Dismiss deletes the records of every listed row and closes the dialog.
 - Set up / Remove run `hook.py setup` / `hook.py remove` and redraw the dir list from the answer.
 - Esc closes the dialog.
+- For Corgi's popup the mod publishes one row in shared state (Corgi's CONVENTIONS.md): `resume` in
+  `corgi.providers`, and `corgi.items.resume` = `[{id: "hooks", title: "Resume Claude sessions", subtitle, run:
+  [["mod.open", {name: "resume"}]]}]`, the subtitle "Claude Code hooks not set up" or "Claude Code hooks set up
+  in N of M config dirs". Written when the watcher starts, when the dialog loads and after Set up or Remove, and
+  only when it changed. Without Corgi nothing reads it.
 
 **Built from:**
 - `mods/resume/mod.json`: `{ "place": "none", "title": "Resume Claude sessions", "overlay": { "kind": "dialog",

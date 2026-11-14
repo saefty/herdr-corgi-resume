@@ -14,6 +14,17 @@ const KEY = "resume.notified"; // the candidate set the last notification was ab
 let hinted = false; // the "set it up" notification was shown in this app run (module scope: shared by every copy)
 const OPEN = { name: "mod.open", args: { name: "resume" } };
 
+// The row Corgi's popup shows for this mod (its CONVENTIONS.md: `corgi.providers`, `corgi.items.<provider>`), so
+// the hook setup can be reached from there. Without Corgi nothing reads these keys.
+function publish(dirs) {
+  const on = dirs.filter((d) => d.installed).length;
+  const row = [{ id: "hooks", title: "Resume Claude sessions", run: [["mod.open", { name: "resume" }]],
+    subtitle: on === 0 ? "Claude Code hooks not set up" : `Claude Code hooks set up in ${on} of ${dirs.length} config dirs` }];
+  const providers = shared("corgi.providers") ?? [];
+  if (!providers.includes("resume")) setShared("corgi.providers", [...providers, "resume"]);
+  if (JSON.stringify(shared("corgi.items.resume")) !== JSON.stringify(row)) setShared("corgi.items.resume", row);
+}
+
 async function helper(...args) {
   const r = await exec("python3", [`${appHome()}/mods/resume/hook.py`, ...args]);
   if (r.code !== 0) throw new Error((r.stderr || "hook.py failed").trim().split("\n").pop());
@@ -52,6 +63,7 @@ export default class Resume extends View {
     cx.spawn(async () => {
       try {
         const { dirs } = await helper("status");
+        publish(dirs);
         if (dirs.some((d) => d.installed)) return;
         notify({ title: "Resume Claude sessions after a restart", body: "Click to set up the Claude Code hooks it needs.", level: "info", action: OPEN });
       } catch {}
@@ -89,6 +101,7 @@ export default class Resume extends View {
         this.rows = (await helper("candidates", "--cost")).candidates; // once per dialog: reads transcript tails
         const status = await helper("status");
         this.dirs = status.dirs;
+        publish(this.dirs);
         this.home = status.home; // hook.py's home: RESUME_FIXTURE's in the demo, else the same as home()
         this.err = null;
       } catch (e) { this.rows = this.rows ?? []; this.err = String(e?.message ?? e); }
@@ -129,7 +142,7 @@ export default class Resume extends View {
   }
 
   setup(cx, what) {
-    this.act(cx, async () => { this.dirs = (await helper(what)).dirs; });
+    this.act(cx, async () => { this.dirs = (await helper(what)).dirs; publish(this.dirs); });
   }
 
   render(cx) {

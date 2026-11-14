@@ -76,7 +76,8 @@ By hand, step by step:
 3. Run `herdr-app check ~/.config/herdr-app/mods/resume`.
 4. Open the dialog: `herdr-app do mod.open --name resume` (until a config dir is set up, every start of Herdr also
    posts a notification that opens it). Click **Set up**. Without the hooks nothing is recorded, so nothing can be
-   offered after a restart.
+   offered after a restart. With Corgi installed, its popup has a row "Resume Claude sessions" that opens the same
+   dialog and says whether the hooks are set up.
 
 <p align="center"><img src="docs/screenshots/set-up.png" width="560" alt="The dialog's hook section before Set up: ~/.claude and ~/.claude-oss not set up" /></p>
 

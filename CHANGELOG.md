@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 (2026-11-14)
+
+### Features
+
+- resume: a row in the Corgi popup that opens the hook setup
+
 ## 0.3.1 (2026-11-14)
 
 ### Fixes

@@ -36,9 +36,11 @@ def test_hook():
     assert rec["config_dir"] is None and isinstance(rec["at"], int)
     rec = run_hook("SessionStart", "b2", source="clear")  # /clear: a new session id overwrites
     assert rec["session_id"] == "b2"
-    assert run_hook("SessionEnd", "a1", reason="other")["session_id"] == "b2"  # not ours: kept
-    assert run_hook("SessionEnd", "b2", reason="other") is None  # ours: deleted
-    assert run_hook("SessionEnd", "b2", reason="other") is None  # nothing there: still quiet
+    assert run_hook("SessionEnd", "a1", reason="prompt_input_exit")["session_id"] == "b2"  # not ours: kept
+    # killed (shutdown, logout, OS update, the terminal's owner gone): the one to resume after the restart
+    assert run_hook("SessionEnd", "b2", reason="other")["session_id"] == "b2"
+    assert run_hook("SessionEnd", "b2", reason="prompt_input_exit") is None  # ours, and the person left: deleted
+    assert run_hook("SessionEnd", "b2", reason="prompt_input_exit") is None  # nothing there: still quiet
     rec = run_hook("SessionStart", "c3", env={**ENV, "CLAUDE_CONFIG_DIR": str(TMP / "home" / ".claude-x")})
     assert rec["config_dir"] == str(TMP / "home" / ".claude-x")
     assert run_hook("SessionStart", "d4", env={**ENV, "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"})["session_id"] == "c3"

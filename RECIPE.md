@@ -11,8 +11,9 @@ where the person picks the ones to bring back. Nothing resumes without a click.
   hides it.
 - A notification, level `info`: title "N Claude sessions can be resumed" ("1 Claude session" for one), body "Click
   to choose which ones.". Clicking it runs `mod.open {name: "resume"}`.
-- Once ever, when no Claude config dir has the hooks yet: "Resume Claude sessions after a restart", body "Click to
-  set up the Claude Code hooks it needs.", same action.
+- Once per app start, for as long as no Claude config dir has the hooks: "Resume Claude sessions after a restart",
+  body "Click to set up the Claude Code hooks it needs.", same action. (Not once ever: without the hooks the mod
+  records nothing, and one missed toast would leave it silent for good.)
 - The dialog (`mod.json` overlay: `dialog`, 560 × 460), `popover` background, 14 px padding, 10 px gaps:
   - Title "Resume Claude sessions", 14 px semibold; under it in 12 px `muted`: "These terminals ran Claude Code before
     Herdr restarted them. Resuming reloads each conversation, which uses tokens."
@@ -64,7 +65,8 @@ where the person picks the ones to bring back. Nothing resumes without a click.
     `transcript_path`) from stdin. SessionStart with `HC_TERMINAL_ID` set writes
     `<app home>/data/resume/<HC_TERMINAL_ID>.json` = `{terminal, session_id, cwd, config_dir, transcript, at}`
     atomically (`config_dir`: `CLAUDE_CONFIG_DIR` made absolute, or null); SessionEnd deletes it only when its
-    `session_id` matches. Never prints, always exits 0. `<app home>` is `HERDR_APP_HOME`, else `~/.config/herdr-app`.
+    `session_id` matches and its `reason` isn't `other`. Never prints, always exits 0. `<app home>` is
+    `HERDR_APP_HOME`, else `~/.config/herdr-app`.
   - `status`: `{dirs: [{dir, label, installed}], home}` for `~/.claude` plus each `~/.claude-*` dir holding a
     `settings.json` or `projects/`; `home` is the folder `~` means (the dialog shortens paths with it).
   - `setup` / `remove`: the same, after merging. Setup appends `{"hooks": [{"type": "command", "command":
@@ -88,6 +90,10 @@ where the person picks the ones to bring back. Nothing resumes without a click.
 - `claude -p` and SDK apps started inside a Herdr terminal (from Claude's own shell, a script) inherit
   `HC_TERMINAL_ID` and fire the same hooks. Only `CLAUDE_CODE_ENTRYPOINT=cli` (the interactive session) is recorded;
   `-p` runs report `sdk-cli`.
+- SessionEnd's `reason` tells leaving from being killed: `/exit`, Ctrl+C twice and Ctrl+D twice report
+  `prompt_input_exit`; SIGHUP and SIGTERM report `other` (checked with Claude Code 2.1). A shutdown, a logout, an OS
+  update and the end of herdr-core all kill Claude that way, and the hook still runs: deleting on `other` would
+  remove exactly the records a restart needs. A kept record whose terminal was closed is dropped by `candidates`.
 - `/clear` and `/resume` fire SessionEnd (old id) and SessionStart (new id). Deleting only on a matching id keeps the
   record right in either order.
 - Quoting must work in sh, bash, zsh and fish: fish reads `\'` and `\\` as escapes even inside single quotes, so put
@@ -106,5 +112,6 @@ where the person picks the ones to bring back. Nothing resumes without a click.
 
 **Done when:** `herdr-app check mods/resume` passes; `python3 mods/resume/test_hook.py` prints "all passed" (it runs
 the resume command through sh, bash, zsh and fish with a folder named `it's a dir \ with $HOME`); after Set up,
-`claude` in a Herdr terminal writes `data/resume/<terminal>.json` and `/exit` deletes it; with a record whose
-terminal now runs a plain shell, the notification appears once and Resume types the command into that terminal.
+`claude` in a Herdr terminal writes `data/resume/<terminal>.json`, `/exit` deletes it and `kill -HUP <claude's pid>`
+keeps it; with a record whose terminal now runs a plain shell, the notification appears once and Resume types the
+command into that terminal.

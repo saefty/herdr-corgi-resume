@@ -3,7 +3,7 @@
 
 As a Claude Code hook (no arguments, the hook's JSON on stdin; never prints, always exits 0):
   SessionStart  writes <app home>/data/resume/<HC_TERMINAL_ID>.json: which session runs in this terminal
-  SessionEnd    deletes that file when its session id matches
+  SessionEnd    deletes that file when its session id matches, unless Claude was killed (reason "other")
 For the mod (each prints one JSON object):
   status        the Claude config dirs and whether our hooks are in their settings.json
   setup         adds our SessionStart and SessionEnd hooks to every config dir's settings.json
@@ -89,7 +89,10 @@ def hook(data, env=os.environ):
             "terminal": term, "session_id": sid, "cwd": data.get("cwd") or os.getcwd(),
             "config_dir": os.path.abspath(os.path.expanduser(config)) if config else None,
             "transcript": data.get("transcript_path"), "at": int(time.time())}))
-    elif event == "SessionEnd" and (read_json(path) or {}).get("session_id") == sid:
+    # reason "other" is Claude being killed (SIGHUP or SIGTERM: shutdown, logout, OS update, herdr-core gone), not
+    # the person leaving (/exit, Ctrl+C, Ctrl+D: "prompt_input_exit"). That session is the one to offer afterwards.
+    elif (event == "SessionEnd" and data.get("reason") != "other"
+          and (read_json(path) or {}).get("session_id") == sid):
         path.unlink(missing_ok=True)
 
 

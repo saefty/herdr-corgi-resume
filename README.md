@@ -30,7 +30,9 @@ dialog shows roughly how many and what that would cost at API prices.
 
 1. A small Claude Code hook (`hook.py`, Python standard library) runs on every SessionStart and SessionEnd. Inside a
    Herdr terminal (`HC_TERMINAL_ID` is set) it writes `~/.config/herdr-app/data/resume/<terminal>.json`: the session
-   id, its folder and its config dir. `/clear` overwrites it; a normal exit deletes it.
+   id, its folder and its config dir. `/clear` overwrites it; leaving Claude yourself (`/exit`, Ctrl+C, Ctrl+D)
+   deletes it. When Claude is killed instead (shutdown, logout, OS update, a crash) the record stays: that is the
+   session to offer afterwards.
 2. The mod watches Herdr's terminals. A record whose terminal is live but no longer runs Claude can be resumed.
 3. The dialog lists them with their space and tab, folder, config dir, last activity, and what resuming costs: the
    cache expired with the reboot, so the first message writes the whole context to the prompt cache again. The
@@ -72,8 +74,9 @@ By hand, step by step:
 
    Add it to every layout you use: the watcher only runs in the shown one.
 3. Run `herdr-app check ~/.config/herdr-app/mods/resume`.
-4. Open the dialog: `herdr-app do mod.open --name resume` (the first start also posts a notification that opens
-   it). Click **Set up**.
+4. Open the dialog: `herdr-app do mod.open --name resume` (until a config dir is set up, every start of Herdr also
+   posts a notification that opens it). Click **Set up**. Without the hooks nothing is recorded, so nothing can be
+   offered after a restart.
 
 <p align="center"><img src="docs/screenshots/set-up.png" width="560" alt="The dialog's hook section before Set up: ~/.claude and ~/.claude-oss not set up" /></p>
 
